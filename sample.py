@@ -2,13 +2,33 @@ import torch
 import matplotlib.pyplot as plt
 import numpy as np 
 import argparse
-import pickle 
+import pickle
 import os
-from torchvision import transforms 
-from build_vocab import Vocabulary
+from torchvision import transforms
 from model import EncoderCNN, DecoderRNN
 from PIL import Image
+import pdb
 
+class Vocabulary(object):
+    """Simple vocabulary wrapper."""
+    def __init__(self):
+        self.word2idx = {}
+        self.idx2word = {}
+        self.idx = 0
+
+    def add_word(self, word):
+        if not word in self.word2idx:
+            self.word2idx[word] = self.idx
+            self.idx2word[self.idx] = word
+            self.idx += 1
+
+    def __call__(self, word):
+        if not word in self.word2idx:
+            return self.word2idx['<unk>']
+        return self.word2idx[word]
+
+    def __len__(self):
+        return len(self.word2idx)
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -40,8 +60,8 @@ def main(args):
     decoder = decoder.to(device)
 
     # Load the trained model parameters
-    encoder.load_state_dict(torch.load(args.encoder_path))
-    decoder.load_state_dict(torch.load(args.decoder_path))
+    encoder.load_state_dict(torch.load(args.encoder_path, map_location='cpu'))
+    decoder.load_state_dict(torch.load(args.decoder_path, map_location='cpu'))
 
     # Prepare an image
     image = load_image(args.image, transform)
@@ -49,33 +69,42 @@ def main(args):
     
     # Generate an caption from the image
     feature = encoder(image_tensor)
-    sampled_ids = decoder.sample(feature)
-    sampled_ids = sampled_ids[0].cpu().numpy()          # (1, max_seq_length) -> (max_seq_length)
+    #sampled_ids = decoder.sample(feature)
+    #sampled_ids = sampled_ids[0].cpu().numpy()          # (1, max_seq_length) -> (max_seq_length)
     
-    # Convert word_ids to words
-    sampled_caption = []
-    for word_id in sampled_ids:
-        word = vocab.idx2word[word_id]
-        sampled_caption.append(word)
-        if word == '<end>':
-            break
-    sentence = ' '.join(sampled_caption)
+    # sample by beam search
+    sampled_ids = decoder.sample_beam_search(feature)
+    num_sents = min(len(sampled_ids), 3)
     
-    # Print out the image and the generated caption
-    print (sentence)
-    image = Image.open(args.image)
-    plt.imshow(np.asarray(image))
-    
-if __name__ == '__main__':
+    sentences = []
+    for sampled_id in sampled_ids[:num_sents]:
+    #Convert word_ids to words
+        sampled_caption = []
+        for word_id in sampled_id:
+            word = vocab.idx2word[int(word_id)]
+            sampled_caption.append(word)
+            if word == '<end>':
+                sentence = ' '.join(sampled_caption)
+                sentences.append(sentence)
+                break
+            
+    for sentence in list(set(sentences)): #print only the unique sentences
+        print(sentence)
+    #image = Image.open(args.image)
+    #plt.imshow(np.asarray(image))
+
+    return list(set(sentences))
+
+def run(imgDir, encoder_path, decoder_path):
     parser = argparse.ArgumentParser()
-    parser.add_argument('--image', type=str, required=True, help='input image for generating caption')
-    parser.add_argument('--encoder_path', type=str, default='data2/models/encoder-2-1000.ckpt', help='path for trained encoder')
-    parser.add_argument('--decoder_path', type=str, default='data2/models/decoder-2-1000.ckpt', help='path for trained decoder')
-    parser.add_argument('--vocab_path', type=str, default='data2/vocab.pkl', help='path for vocabulary wrapper')
+    parser.add_argument('--image', type=str, default= imgDir, help='input image for generating caption')
+    parser.add_argument('--encoder_path', type=str, default=encoder_path, help='path for trained encoder')
+    parser.add_argument('--decoder_path', type=str, default=decoder_path, help='path for trained decoder')
+    parser.add_argument('--vocab_path', type=str, default='vocab.pkl', help='path for vocabulary wrapper')
     
     # Model parameters (should be same as paramters in train.py)
     parser.add_argument('--embed_size', type=int , default=256, help='dimension of word embedding vectors')
     parser.add_argument('--hidden_size', type=int , default=512, help='dimension of lstm hidden states')
     parser.add_argument('--num_layers', type=int , default=1, help='number of layers in lstm')
     args = parser.parse_args()
-    main(args)
+    return main(args)
