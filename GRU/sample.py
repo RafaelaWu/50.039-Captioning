@@ -100,7 +100,7 @@ def run(imgDir, encoder_path, decoder_path):
     parser.add_argument('--image', type=str, default= imgDir, help='input image for generating caption')
     parser.add_argument('--encoder_path', type=str, default=encoder_path, help='path for trained encoder')
     parser.add_argument('--decoder_path', type=str, default=decoder_path, help='path for trained decoder')
-    parser.add_argument('--vocab_path', type=str, default='vocab.pkl', help='path for vocabulary wrapper')
+    parser.add_argument('--vocab_path', type=str, default='data2/vocab.pkl', help='path for vocabulary wrapper')
     
     # Model parameters (should be same as paramters in train.py)
     parser.add_argument('--embed_size', type=int , default=128, help='dimension of word embedding vectors')
