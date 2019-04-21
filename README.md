@@ -1,4 +1,7 @@
 # 50.039 Project
+
+
+## Project Description
 The Image Captioning project of 50.039
 
 ## User Manual
