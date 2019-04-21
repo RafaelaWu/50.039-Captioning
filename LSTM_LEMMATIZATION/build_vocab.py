@@ -25,10 +25,10 @@ class Vocabulary(object):
     def __call__(self, word):
         stem_word = self.lemmatizer.lemmatize(word)
         #stem_word = self.stemmer.stem(word)
-        if not word in self.word2idx:
+        if not stem_word in self.word2idx:
             return self.word2idx['<unk>']
         else:
-            return self.word2idx[word]
+            return self.word2idx[stem_word]
 
     def __len__(self):
         return len(self.word2idx)
